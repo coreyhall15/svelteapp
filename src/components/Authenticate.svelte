@@ -1,73 +1,97 @@
 <script>
-    let email = '';
-    let password = '';
-    let confirmPassword = '';
+    import { authHandlers } from "../store/store";
+
+    let email = "";
+    let password = "";
+    let confirmPass = "";
     let error = false;
     let register = false;
+    let authenticating = false;
 
-    function handleAuthenticate() {
-        if ( ! email || password || (register && !confirmPassword)) {
-            error = true
-            return
+    async function handleAuthenticate() {
+        if (authenticating) {
+            return;
+        }
+        if (!email || !password || (register && !confirmPass)) {
+            error = true;
+            return;
+        }
+        authenticating = true;
+
+        try {
+            if (!register) {
+                await authHandlers.login(email, password);
+            } else {
+                await authHandlers.signup(email, password);
+            }
+        } catch (err) {
+            console.log("There was an auth error", err);
+            error = true;
+            authenticating = false;
         }
     }
 
     function handleRegister() {
         register = !register;
     }
-
 </script>
 
-
-
- <div class="authContainer">
+<div class="authContainer">
     <form>
         <h1>{register ? "Register" : "Login"}</h1>
-        {#if error} 
-        <p class="error">The information entered is not correct</p>
+        {#if error}
+            <p class="error">The information you have entered is not correct</p>
         {/if}
         <label>
-            <p class={email ? ' above ' : ' center'}>Email</p>
-            <input bind:value={email} type="email" placeholder="email" />
+            <p class={email ? " above" : " center"}>Email</p>
+            <input bind:value={email} type="email" placeholder="Email" />
         </label>
-        
         <label>
-            <p class={password ? ' above ' : ' center'}>Password</p>
-            <input bind:value={password} type="password" placeholder="PASSWORD" />
+            <p class={password ? " above" : " center"}>Password</p>
+            <input
+                bind:value={password}
+                type="password"
+                placeholder="Password"
+            />
         </label>
-
         {#if register}
-        <label>
-            <p class={confirmPassword ? ' above ' : ' center'}>Confirm Password</p>
-            <input bind:value={confirmPassword} type="password" placeholder="Confirm PASSWORD"/>
-        </label>
+            <label>
+                <p class={confirmPass ? " above" : " center"}>
+                    Confirm Password
+                </p>
+                <input
+                    bind:value={confirmPass}
+                    type="password"
+                    placeholder="Confirm Password"
+                />
+            </label>
         {/if}
-        <label>
-            <p class={confirmPassword ? ' above ' : ' center'}>Confirm Password</p>
-            <input bind:value={confirmPassword} type="password" placeholder="Confirm PASSWORD"/>
-        </label>
 
-        <button type="button">SUBMIT</button>
+        <button on:click={handleAuthenticate} type="button" class="submitBtn">
+            {#if authenticating}
+                <i class="fa-solid fa-spinner loadingSpinner" />
+            {:else}
+                Submit
+            {/if}
+        </button>
     </form>
-
     <div class="options">
         <p>Or</p>
         {#if register}
-        <div>
-            <p>Already have an account<p/>
-            <p on:click={handleRegister} on:keydown={ () => {} }>Login</p>
-        </div>
+            <div>
+                <p>Already have an account?</p>
+                <p on:click={handleRegister} on:keydown={() => {}}>Login</p>
+            </div>
         {:else}
-
-        <p>Dont have an account<p/>
-            <p on:click={handleRegister} on:keydown={ () => {} }>Register</p>
-
+            <div>
+                <p>Don't have an account?</p>
+                <p on:click={handleRegister} on:keydown={() => {}}>Register</p>
+            </div>
         {/if}
-
     </div>
- </div>
+</div>
 
- <style>
+<style>
     .authContainer {
         display: flex;
         flex-direction: column;
@@ -75,16 +99,16 @@
         justify-content: center;
         flex: 1;
         padding: 24px;
-        
-        
     }
 
     form {
         display: flex;
         flex-direction: column;
-        align-items: center;
-        justify-content: center;
         gap: 14px;
+    }
+
+    form,
+    .options {
         width: 400px;
         max-width: 100%;
         margin: 0 auto;
@@ -92,7 +116,6 @@
 
     form input {
         width: 100%;
-
     }
 
     h1 {
@@ -102,21 +125,15 @@
 
     form label {
         position: relative;
-        border: 2px solid white;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        justify-content: center;
-        width: 100%;
-        gap: 4px;
+        border: 1px solid navy;
+        border-radius: 5px;
     }
 
     form input {
         border: none;
         background: transparent;
         color: white;
-        padding: 14px 14px;
-
+        padding: 14px;
     }
 
     form input:focus {
@@ -129,38 +146,38 @@
     }
 
     form button {
-        background: aliceblue;
-        color: gray;
+        background: navy;
+        color: white;
         border: none;
-        padding: 14px 14px;
+        padding: 14px 0;
+        border-radius: 5px;
         cursor: pointer;
-        font-size: 1.2rem;
+        font-size: 1rem;
+        display: grid;
+        place-items: center;
     }
 
     form button:hover {
-        background: #f2f2f2;
+        background: blue;
     }
 
     .above,
     .center {
-    
         position: absolute;
-        top: 50%;
-        left: 50%;
         transform: translateY(-50%);
         pointer-events: none;
-        border-radius: 4px;
-        padding: 0 4px;
-        font-size: 0.8rem;
         color: white;
-       
+        border-radius: 4px;
+        padding: 0 6px;
+        font-size: 0.8rem;
     }
 
     .above {
         top: 0;
         left: 24px;
-        background: #333;
+        background: navy;
         border: 1px solid blue;
+        font-size: 0.7rem;
     }
 
     .center {
@@ -171,16 +188,18 @@
     }
 
     .error {
-        color: red;
+        color: coral;
         font-size: 0.9rem;
+        text-align: center;
     }
 
     .options {
         padding: 14px 0;
         overflow: hidden;
-        width: 100%;
-        
-
+        font-size: 0.9rem;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
     }
 
     .options > p {
@@ -188,20 +207,20 @@
         text-align: center;
         width: fit-content;
         margin: 0 auto;
+        padding: 0 8px;
     }
 
     .options > p::after,
     .options > p::before {
-        content: '';
         position: absolute;
+        content: "";
         top: 50%;
-        left: 0%;
         transform: translateY(-50%);
-        width: 100vm;
-        height: 1px;
+        width: 100vw;
+        height: 1.5px;
         background: white;
     }
-    
+
     .options > p::after {
         right: 100%;
     }
@@ -209,5 +228,29 @@
     .options > p::before {
         left: 100%;
     }
-    
- </style>
+
+    .options div {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        justify-content: center;
+    }
+
+    .options div p:last-of-type {
+        color: cyan;
+        cursor: pointer;
+    }
+
+    .loadingSpinner {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
+        }
+    }
+</style>

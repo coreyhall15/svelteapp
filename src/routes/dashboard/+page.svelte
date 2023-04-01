@@ -1,178 +1,307 @@
 <script>
-    let enterJob = ["Chops Lobster Bar"];
-    let currentJob = '';
+    import { db } from "../../lib/firebase/firebase";
+    import { doc, setDoc, updateDoc } from "firebase/firestore";
+    import { authHandlers, authStore } from "../../store/store";
+    import { onMount } from "svelte";
+  
+    let contacts = [];
+    let name = "";
+    let address = "";
+    let email = "";
+    let notes = "";
     let error = false;
-
-    function addJob (){
-            error = false;
-            if (!currentJob) {
-                error = true;
-            }
-            enterJob = [...enterJob, currentJob];
-            currentJob = "";
-        }
-
-        function editJob(index) {
-            let newJob = enterJob.filter((val, i) => {
-                return i !== index;
-                })
-                currentJob = enterJob[index];
-                enterJob = newJob;
-            }
-            
-
-        function deleteJob(index) {
-            let newJob = enterJob.filter((val, i) => {
-                return i !== index;
-                })
-                enterJob = newJob;
-        }
+    let editingIndex = -1; // initialize editingIndex to -1
+  
+    authStore.subscribe((curr) => {
+      contacts = curr.data.contacts;
+    });
+  
+  
+    async function addContact() {
+      error = false;
+      if (!name || !address || !email) {
+        error = true;
+        return;
+      }
+      const newContact = { name, address, email, notes };
+      contacts.push(newContact);
+      await saveContacts();
+      name = "";
+      address = "";
+      email = "";
+      notes = "";
+    }
+  
+    async function updateContact() {
+      const userRef = doc(db, "users", authStore.user.uid);
+      await updateDoc(userRef, {
+        [`contacts.${editingIndex}.name`]: name,
+        [`contacts.${editingIndex}.address`]: address,
+        [`contacts.${editingIndex}.email`]: email,
+        [`contacts.${editingIndex}.notes`]: notes,
+      });
+      editingIndex = -1;
+      name = "";
+      address = "";
+      email = "";
+      notes = "";
+    }
+  
+    async function deleteContact(index) {
+      const newContacts = [...contacts.slice(0, index), ...contacts.slice(index + 1)];
+      const userRef = doc(db, "users", authStore.user.uid);
+      await setDoc(userRef, { contacts: newContacts }, { merge: true });
+    }
+  
+    async function saveContacts() {
+      const userRef = doc(db, "users", authStore.user.uid);
+      await setDoc(userRef, { contacts }, { merge: true });
+    }
+  
+    function editContact(index) {
+      editingIndex = index;
+      name = contacts[index].name;
+      address = contacts[index].address;
+      email = contacts[index].email;
+      notes = contacts[index].notes;
+    }
+  
+    function clearForm() {
+      editingIndex = -1;
+      name = "";
+      address = "";
+      email = "";
+      notes = "";
+    }
+  </script>
+  
+  <form on:submit|preventDefault={editingIndex === -1 ? addContact : updateContact}>
+    <label>
+      Name:
+      <input type="text" bind:value={name} />
+    </label>
+    <label>
+      Address:
+      <input type="text" bind:value={address} />
+    </label>
+    <label>
+      Email:
+      <input type="email" bind:value={email} />
+    </label>
+    <label>
+      Notes:
+      <textarea bind:value={notes}></textarea>
+    </label>
     
-
-</script>
-
-<div class="mainConatiner">
-    <div class="headerContainer">
-        <h1>Enviromaster</h1>
-        <p>Dashboard</p>
-        <div class="headerButtons">
-        <button><i class="fa-solid fa-user-circle fa-bounce"></i><p>Profile</p></button>
-        <button><i class="fa-solid fa-floppy-disk fa-bounce"></i><p>Save</p></button>
-        <button><i class="fa-solid fa-sign-out fa-bounce"></i><p>Logout</p></button>
-        </div>
+  </form>
+  
+  
+  <!-- <ul> -->
+    {#each contacts as contact, index}
+      <li>
+        <strong>{contact.name}</strong>
+        <button on:click={() => editContact(index)}>Edit</button>
+        <button on:click={() => deleteContact(index)}>Delete</button>
+        <br />
+        {contact.address}<br />
+        {contact.email}<br />
+        {contact.notes}
+      </li>
+    {/each}
+  
+        
+    
+  
+  
+  <div class="form-container">
+    <div class="form-row">
+      <label for="name">Name:</label>
+      <input type="text" id="name" bind:value={name} />
     </div>
-    <main>
-        {#if enterJob.length === 0} 
-            <p>
-                There are no jobs
-            </p>
-        {/if}
-        
-        {#each enterJob as job, index }
-        <div class="job">
-            <p>
-            {index+1}. {job}
-        </p>
-        <div class="actions">
-        <i on:click={() => {
-            editJob(index);
-        }} 
-        on:keydown={() => {}}
-        class="fa-solid fa-pen"/>
-        <i on:click={() => {
-            deleteJob(index);
-        }} 
-        on:keydown={() => {}} class="fa-solid fa-trash-can"/>
-        </div>
-        </div>
-        {/each}
-        
-       
-    </main>
-         <div class={"enterJob" + (error ? 'errorBorder' : "")}>
-        <input bind:value={currentJob} type="text" placeholder="Enter Job" />
-        <button on:click={addJob}>ADD</button>
-        </div>
-</div>
-
-<style>
-.mainConatiner {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    width: 100vw;
-
-}
-
-.headerContainer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
+    <div class="form-row">
+      <label for="address">Address:</label>
+      <input type="text" id="address" bind:value={address} />
+    </div>
+    <div class="form-row">
+      <label for="email">Email:</label>
+      <input type="email" id="email" bind:value={email} />
+    </div>
+    <div class="form-row">
+      <label for="notes">Notes:</label>
+      <textarea id="notes" bind:value={notes}></textarea>
+    </div>
+    <div class="form-row">
+      {#if editingIndex === -1}
+        <button on:click={addContact}>Add</button>
+      {:else}
+      <!-- {error && <p>Please fill out all required fields</p>} -->
+      <button type="submit">{editingIndex === -1 ? "Add" : "Update"}</button>
+      <!-- {editingIndex !== -1 && <button type="button" on:click={clearForm}>Cancel</button>} -->
+      {/if}
+    </div>
+    </div>
     
-}
+  
+    <div class="container">
+        <h1>Contacts List</h1>
+        <form class="form" on:submit|preventDefault={deleteContact ? updateContact : addContact}>
+          <input type="text" placeholder="Name" bind:value={name} required />
+          <input type="text" placeholder="Address" bind:value={address} required />
+          <input type="email" placeholder="Email" bind:value={email} required />
+          <textarea placeholder="Notes" bind:value={notes}></textarea>
+          <button type="submit">{deleteContact ? 'Update' : 'Add'}</button>
+        </form>
 
-.headerButton {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-}
-
-.headerContainer button {
-    background-color: #4CAF50;
-    border: none;
-    color: white;
-    padding: 8px 16px;
-    text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 14px;
-    margin: 4px 2px;
-    cursor: pointer;
-    gap: 8px;
-}
-
-.headerContainer button i {
-    font-size: 1.2rem;
-}
-
-.headerContainer button:hover {
-    opacity: 0.7;
-    cursor: pointer;
-
-}
-
-main {
+        <div class="contacts">
+            {#if contacts && contacts.length}
+                {#each contacts as contact, index}
+                    <div class="contact">
+                    <h3>{contact.name}</h3>
+                    <p>{contact.address}</p>
+                    <p>{contact.email}</p>
+                    <p>{contact.notes}</p>
+                    <button class="edit" on:click={() => editContact(index)}>Edit</button>
+                    <button class="delete" on:click={() => deleteContact(index)}>Delete</button>
+                    </div>
+                {/each}
+            {:else}
+                <p>No contacts found.</p>
+            {/if}
+        </div>
+        
+        </div>
+<style>
+    .form-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .form-row {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 5px;
+    }
+    
+    .form-row label {
+        margin-bottom: 5px;
+    }
+    
+    .form-row input, .form-row textarea {
+        padding: 5px;
+        width: 300px;
+    }
+    
+    .form-row button {
+        margin-top: 10px;
+    }
+    
+    .container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .form {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 20px;
+        border: 1px solid black;
+        padding: 10px;
+        width: 300px;
+    }
+    
+    .form input, .form textarea {
+        margin: 5px;
+        padding: 5px;
+        width: 100%;
+    }
+    
+    .form button {
+        margin-top: 10px;
+    }
+    
+    .contacts {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 20px;
+        border: 1px solid black;
+        padding: 10px;
+        width: 300px;
+    }
+    
+    .contact {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 5px;
+        padding: 5px;
+        border: 1px solid black;
+        width: 100%;
+    }
+    
+    .contact button {
+        margin: 5px;
+    }
+    
+    .contact button.edit {
+        background-color: green;
+    }
+    
+    .contact button.delete {
+        background-color: red;
+    }
+.container {
     display: flex;
     flex-direction: column;
-    background-color: gray;
-    gap: 8px;
-}
-
-.job {
-    border: left solid black;
-    padding: 8px 14px;
-    display: flex;
     align-items: center;
-    justify-content: space-between;
-}
+  }
 
-.actions {
+  .form {
     display: flex;
-    gap: 14px;
-    align-items: 8px;
-    font-size: 1.3rem;
-}
-
-.actions i:hover {
-    cursor: pointer;
-    color:coral
-
-}
-
-.enterJob {
-    display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    padding: 8px;
-    background-color: white;
-}
+    margin-top: 20px;
+    border: 1px solid black;
+    padding: 10px;
+    width: 300px;
+  }
 
-.errorBorder {
-    border-color: coral !important;
-}
+  .form input, .form textarea {
+    margin: 5px;
+    padding: 5px;
+    width: 100%;
+  }
 
-.enterJob button {
-    background-color: #4CAF50;
-    border: none;
-    color: white;
-    padding: 8px 16px;
-    text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 16px;
-    margin: 4px 2px;
-    cursor: pointer;
-}
+  .form button {
+    margin-top: 10px;
+  }
+
+  .contacts {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 20px;
+    border: 1px solid black;
+    padding: 10px;
+    width: 300px;
+  }
+
+  .contact {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 5px;
+    padding: 5px;
+    border: 1px solid black;
+    width: 100%;
+  }
+
+  .contact button {
+    margin-top: 5px;
+  }
+
 </style>
